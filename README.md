@@ -4,7 +4,7 @@ Extract Email addresses using IMAP.
 
 ## Installation
 
-Update IMAP info (user/pass) in config.properties
+Update IMAP info (user/pass) in src/main/resources/config.properties
 
 # Build
 

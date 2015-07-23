@@ -1,17 +1,17 @@
 # imap-email-extractor
 
-Extract Email addres using IMAP.  
+Extract Email addresses using IMAP.  
 
 ## Installation
 
-Update imap infos (user/pass) in config.properties
+Update IMAP info (user/pass) in config.properties
 
-# Commmands
+# Commands
 
 ```
 Usage: EmailExtractor -i [folders] -e [folders] -h
   where OPTIONS may be:
     -h              Print this help
-    -i <folders>    OPTIONAL Comma separators list of include folder (regular expression)
-    -e <folders>    OPTIONAL Comma separators list of exclude folder (regular expression)
+    -i <folders>    OPTIONAL Comma-separated list of include folders (regular expression)
+    -e <folders>    OPTIONAL Comma-separated list of exclude folders (regular expression)
 ```

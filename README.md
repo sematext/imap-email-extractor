@@ -6,10 +6,16 @@ Extract Email addresses using IMAP.
 
 Update IMAP info (user/pass) in config.properties
 
+# Build
+
+```
+mvn package
+```
+
 # Commands
 
 ```
-Usage: EmailExtractor -i [folders] -e [folders] -h
+Usage: java -jar target/imap-email-extractor-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i [folders] -e [folders] -h
   where OPTIONS may be:
     -h              Print this help
     -i <folders>    OPTIONAL Comma-separated list of include folders (regular expression)

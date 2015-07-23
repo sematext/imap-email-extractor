@@ -88,17 +88,17 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
               hasMessages = (next.getType() & Folder.HOLDS_MESSAGES) != 0;
               next.open(Folder.READ_ONLY);
               lastFolder = next;
-              LOG.info("Opened folder: " + fullName);
+              LOG.debug("Opened folder: " + fullName);
             }
             if (((next.getType() & Folder.HOLDS_FOLDERS) != 0)) {
               Folder[] children = next.list();
-              LOG.info("Adding its children to list");
+              LOG.debug("Adding its children to list");
               for (int i = children.length - 1; i >= 0; i--) {
                 folders.add(0, children[i]);
                 LOG.info("Child name : " + children[i].getFullName());
               }
               if (children.length == 0) {
-                LOG.info("No children");
+                LOG.debug("No children");
               }
             }
           }
@@ -149,7 +149,7 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
         this.folder = folder;
         this.batchSize = batchSize;
         this.totalInFolder = folder.getMessageCount();
-        LOG.info("Total messages: " + totalInFolder);
+        LOG.info("Total messages: " + totalInFolder + " in folder " + folder.getFullName());
         getNextBatch(batchSize, folder);
       } catch (MessagingException e) {
         throw new EmailFetchException("Message retreival failed", e);

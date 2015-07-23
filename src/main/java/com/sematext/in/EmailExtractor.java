@@ -49,7 +49,7 @@ public class EmailExtractor {
       EmailExtractor extractor = new EmailExtractor();
       extractor.extract(line.getOptionValue("include"), line.getOptionValue("exclude"));
     } catch (ParseException exp) {
-      System.err.println("Parsing failed.  Reason: " + exp.getMessage());
+      LOG.error("Parsing failed.  Reason: " + exp.getMessage());
     }
 
   }

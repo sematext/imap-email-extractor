@@ -264,6 +264,10 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
     }
     return true;
   }
+  
+  public void remove() {
+    throw new UnsupportedOperationException("Its read only mode.");
+  }
 
   public IMAPMessage next() {
     return (IMAPMessage) msgIter.next();

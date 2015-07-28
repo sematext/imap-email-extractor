@@ -94,14 +94,14 @@ public class EmailExtractor {
         sb.append(" ");
         fetcher.getPartContent(mail, sb);
 
-        String content = sb.toString();
+        String content = sb.toString().toLowerCase();
         int solrCount = 0;
         int esCount = 0;
         for (String keyword : solrKeywords) {
-          solrCount += StringUtils.countMatches(content, keyword);
+          solrCount += StringUtils.countMatches(content, keyword.toLowerCase());
         }
         for (String keyword : esKeywords) {
-          esCount += StringUtils.countMatches(content, keyword);
+          esCount += StringUtils.countMatches(content, keyword.toLowerCase());
         }
 
         if (esCount == 0 && solrCount == 0) {

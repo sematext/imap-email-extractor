@@ -88,14 +88,14 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
               hasMessages = (next.getType() & Folder.HOLDS_MESSAGES) != 0;
               next.open(Folder.READ_ONLY);
               lastFolder = next;
-              LOG.debug("Opened folder: " + fullName);
+              LOG.info("Opened folder: " + fullName);
             }
             if (((next.getType() & Folder.HOLDS_FOLDERS) != 0)) {
               Folder[] children = next.list();
               LOG.debug("Adding its children to list");
               for (int i = children.length - 1; i >= 0; i--) {
                 folders.add(0, children[i]);
-                LOG.info("Child name : " + children[i].getFullName());
+                LOG.debug("Child name : " + children[i].getFullName());
               }
               if (children.length == 0) {
                 LOG.debug("No children");

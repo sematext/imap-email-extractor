@@ -131,6 +131,7 @@ public class EmailExtractor {
           fetcher.disconnectFromMailBox();
           if (!fetcher.connectToMailBox() || ! fetcher.moveToFolder(curFolder) ) {
             LOG.info("restart at folder " + curFolder + " failed. Skip the failed email and continue");
+            restartCount = 0;
           }
         }
       }

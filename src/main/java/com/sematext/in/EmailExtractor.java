@@ -114,10 +114,20 @@ public class EmailExtractor {
             InternetAddress from = (InternetAddress)address;
             System.out.println("from " + from.getAddress() + " ES " + fetcher.getFolder());
           }
+          // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
+          for (Address address : mail.getAllRecipients()) {
+            InternetAddress to = (InternetAddress)address;
+            System.out.println("to " + to.getAddress() + " ES " + fetcher.getFolder());
+          }
         } else {
           for (Address address : mail.getFrom()) {
             InternetAddress from = (InternetAddress)address;
             System.out.println("from " + from.getAddress() + " Solr " + fetcher.getFolder());
+          }
+         // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
+          for (Address address : mail.getAllRecipients()) {
+            InternetAddress to = (InternetAddress)address;
+            System.out.println("to " + to.getAddress() + " Solr " + fetcher.getFolder());
           }
         }
         restartCount = 0;

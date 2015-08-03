@@ -12,17 +12,11 @@ import com.google.common.collect.Lists;
 import com.sun.mail.imap.IMAPMessage;
 
 import org.apache.commons.configuration.CompositeConfiguration;
-import org.apache.tika.Tika;
-import org.apache.tika.metadata.HttpHeaders;
-import org.apache.tika.metadata.Metadata;
-import org.apache.tika.metadata.TikaMetadataKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.InputStream;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Properties;
 
 import javax.mail.FetchProfile;
@@ -33,7 +27,10 @@ import javax.mail.Multipart;
 import javax.mail.Part;
 import javax.mail.Session;
 import javax.mail.Store;
-import javax.mail.internet.ContentType;
+import javax.mail.search.BodyTerm;
+import javax.mail.search.OrTerm;
+import javax.mail.search.SearchTerm;
+import javax.mail.search.SubjectTerm;
 
 public class IMapFetcher implements Iterator<IMAPMessage> {
   private static final Logger LOG = LoggerFactory.getLogger(IMapFetcher.class);
@@ -41,7 +38,6 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   private final CompositeConfiguration config;
   private final String[] excludes;
   private final String[] includes;
-  private final Tika tika;
 
   private Store mailbox;
   private FolderIterator folderIter;
@@ -52,6 +48,8 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   private int fetchSize = 32 * 1024;
   private int cTimeout = 30 * 1000;
   private int rTimeout = 60 * 1000;
+
+  private List<String> keywords;
 
   class FolderIterator implements Iterator<Folder> {
     private Store mailbox;
@@ -148,9 +146,20 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
       try {
         this.folder = folder;
         this.batchSize = batchSize;
-        this.totalInFolder = folder.getMessageCount();
-        LOG.info("Total messages: " + totalInFolder + " in folder " + folder.getFullName());
-        getNextBatch(batchSize, folder);
+        SearchTerm st = getSearchTerm();
+        if (st != null) {
+          doBatching = false;
+          messagesInCurBatch = folder.search(st);
+          totalInFolder = messagesInCurBatch.length;
+          folder.fetch(messagesInCurBatch, fp);
+          current = 0;
+          LOG.info("Total messages: " + totalInFolder);
+          LOG.info("Search criteria applied. Batching disabled.");
+        } else {
+          totalInFolder = folder.getMessageCount();
+          LOG.info("Total messages: " + totalInFolder);
+          getNextBatch(batchSize, folder);
+        }
       } catch (MessagingException e) {
         throw new EmailFetchException("Message retreival failed", e);
       }
@@ -188,7 +197,7 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
       }
       return hasMore;
     }
-    
+
     public String getFolder() {
       return this.folder.getFullName();
     }
@@ -206,7 +215,6 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
     this.config = config;
     this.includes = includes;
     this.excludes = excludes;
-    this.tika = new Tika();
   }
 
   public boolean connectToMailBox() {
@@ -243,6 +251,26 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
     }
   }
 
+  public void setFilterKeywords(List<String> keywords) {
+    this.keywords = keywords;
+  }
+
+  private SearchTerm getSearchTerm() {
+    if (keywords == null && keywords.isEmpty()) {
+      return null;
+    }
+
+    SearchTerm[] terms = new SearchTerm[keywords.size() * 2];
+    int i = 0;
+    for (String keyword : keywords) {
+      terms[i++] = new SubjectTerm(keyword);
+      terms[i++] = new BodyTerm(keyword);
+    }
+
+    OrTerm orTerm = new OrTerm(terms);
+    return orTerm;
+  }
+
   public boolean hasNext() {
     try {
       if (folderIter == null) {
@@ -264,7 +292,7 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
     }
     return true;
   }
-  
+
   public void remove() {
     throw new UnsupportedOperationException("Its read only mode.");
   }
@@ -272,17 +300,17 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   public IMAPMessage next() {
     return (IMAPMessage) msgIter.next();
   }
-  
+
   public String getFolder() {
     return msgIter.getFolder();
   }
-  
+
   public boolean moveToFolder(String folderName) {
     FolderIterator newFolderIter = null;
     MessageIterator newMsgIter = null;
     try {
       newFolderIter = new FolderIterator(mailbox);
-      
+
       while (newFolderIter.hasNext()) {
         Folder next = newFolderIter.next();
         if (folderName.equals(next.getFullName())) {
@@ -292,7 +320,7 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
           return true;
         }
       }
-      
+
       return false;
     } catch (EmailFetchException e) {
       LOG.error("Fetching email failed", e);
@@ -301,25 +329,23 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   }
 
   public void getPartContent(Part part, StringBuilder sb) throws Exception {
-    if (part.isMimeType("multipart/*")) {
+    if (part.isMimeType("text/*")) {
+      String s = (String) part.getContent();
+      if (s != null) {
+        sb.append(s).append(" ");
+      }
+    } else if (part.isMimeType("multipart/*")) {
       Multipart mp = (Multipart) part.getContent();
       int count = mp.getCount();
-      if (part.isMimeType("multipart/alternative"))
+      if (part.isMimeType("multipart/alternative")) {
         count = 1;
-      for (int i = 0; i < count; i++)
+      }
+
+      for (int i = 0; i < count; i++) {
         getPartContent(mp.getBodyPart(i), sb);
+      }
     } else if (part.isMimeType("message/rfc822")) {
       getPartContent((Part) part.getContent(), sb);
-    } else {
-      ContentType ctype = new ContentType(part.getContentType());
-      InputStream is = part.getInputStream();
-      String fileName = part.getFileName();
-      Metadata md = new Metadata();
-      md.set(HttpHeaders.CONTENT_TYPE, ctype.getBaseType().toLowerCase(Locale.ENGLISH));
-      md.set(TikaMetadataKeys.RESOURCE_NAME_KEY, fileName);
-      String content = tika.parseToString(is, md);
-      sb.append(content);
-      sb.append(" ");
     }
   }
 }

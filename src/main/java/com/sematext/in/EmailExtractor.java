@@ -8,6 +8,8 @@
  */
 package com.sematext.in;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.sun.mail.imap.IMAPMessage;
 
 import org.apache.commons.cli.CommandLine;
@@ -24,6 +26,9 @@ import org.apache.commons.configuration.SystemConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Arrays;
+import java.util.List;
 
 import javax.mail.Address;
 import javax.mail.internet.InternetAddress;
@@ -75,10 +80,12 @@ public class EmailExtractor {
     config.addConfiguration(new SystemConfiguration());
     config.addConfiguration(new PropertiesConfiguration("config.properties"));
 
-    String[] solrKeywords = config.getStringArray("solr.keywords");
-    String[] esKeywords = config.getStringArray("es.keywords");
+    List<String> solrKeywords = Arrays.asList(config.getStringArray("solr.keywords"));
+    List<String> esKeywords = Arrays.asList(config.getStringArray("es.keywords"));
+    List<String> keywords = Lists.newArrayList(Iterables.concat(solrKeywords, esKeywords));
 
     IMapFetcher fetcher = new IMapFetcher(config, includes, excludes);
+    fetcher.setFilterKeywords(keywords);
     if (!fetcher.connectToMailBox()) {
       LOG.error("Can't connect to mailbox");
       return;
@@ -117,7 +124,7 @@ public class EmailExtractor {
           // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
           for (Address address : mail.getAllRecipients()) {
             InternetAddress to = (InternetAddress)address;
-            System.out.println("to " + to.getAddress() + " ES " + fetcher.getFolder());
+            System.out.println("to   " + to.getAddress() + " ES " + fetcher.getFolder());
           }
         } else {
           for (Address address : mail.getFrom()) {
@@ -127,7 +134,7 @@ public class EmailExtractor {
          // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
           for (Address address : mail.getAllRecipients()) {
             InternetAddress to = (InternetAddress)address;
-            System.out.println("to " + to.getAddress() + " Solr " + fetcher.getFolder());
+            System.out.println("to   " + to.getAddress() + " Solr " + fetcher.getFolder());
           }
         }
         restartCount = 0;

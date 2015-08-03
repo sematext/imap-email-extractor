@@ -276,6 +276,29 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   public String getFolder() {
     return msgIter.getFolder();
   }
+  
+  public boolean moveToFolder(String folderName) {
+    FolderIterator newFolderIter = null;
+    MessageIterator newMsgIter = null;
+    try {
+      newFolderIter = new FolderIterator(mailbox);
+      
+      while (newFolderIter.hasNext()) {
+        Folder next = newFolderIter.next();
+        if (folderName.equals(next.getFullName())) {
+          newMsgIter = new MessageIterator(next, batchSize);
+          folderIter = newFolderIter;
+          msgIter = newMsgIter;
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (EmailFetchException e) {
+      LOG.error("Fetching email failed", e);
+      return false;
+    }
+  }
 
   public void getPartContent(Part part, StringBuilder sb) throws Exception {
     if (part.isMimeType("multipart/*")) {

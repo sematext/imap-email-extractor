@@ -84,6 +84,7 @@ public class EmailExtractor {
       return;
     }
 
+    int restartCount = 0;
     StringBuilder sb = new StringBuilder();
     while (fetcher.hasNext()) {
       IMAPMessage mail = fetcher.next();
@@ -113,22 +114,25 @@ public class EmailExtractor {
             InternetAddress from = (InternetAddress)address;
             System.out.println("from " + from.getAddress() + " ES " + fetcher.getFolder());
           }
-          /*for (Address address : mail.getAllRecipients()) {
-            InternetAddress to = (InternetAddress)address;
-            System.out.println("to " + ((InternetAddress)to).getAddress() + " ES " + fetcher.getFolder());
-          }*/
         } else {
           for (Address address : mail.getFrom()) {
             InternetAddress from = (InternetAddress)address;
             System.out.println("from " + from.getAddress() + " Solr " + fetcher.getFolder());
           }
-          /*for (Address address : mail.getAllRecipients()) {
-            InternetAddress to = (InternetAddress)address;
-            System.out.println("to " + ((InternetAddress)to).getAddress() + " Solr " + fetcher.getFolder());
-          }*/
         }
+        restartCount = 0;
       } catch (Exception e) {
         LOG.error("Can't read content from email", e);
+        restartCount++;
+        // restart (connect/disconnect) and continue from current folder
+        if (restartCount <= 3) {
+          String curFolder = fetcher.getFolder();
+          LOG.info("restart at folder " + curFolder + " time " + restartCount);
+          fetcher.disconnectFromMailBox();
+          if (!fetcher.connectToMailBox() || ! fetcher.moveToFolder(curFolder) ) {
+            LOG.info("restart at folder " + curFolder + " failed. Skip the failed email and continue");
+          }
+        }
       }
     }
 

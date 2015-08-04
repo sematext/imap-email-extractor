@@ -151,16 +151,16 @@ public class EmailExtractor {
         // restart (connect/disconnect) and continue from current folder
         if (restartCount <= 3) {
           String curFolder = fetcher.getFolder();
-          LOG.info("restart at folder " + curFolder + " time " + restartCount);
+          LOG.info("Restart at folder " + curFolder + " time " + restartCount);
           fetcher.disconnectFromMailBox();
           if (!fetcher.connectToMailBox() || !fetcher.jumpToFolder(curFolder)) {
-            LOG.info("restart at folder " + curFolder + " failed. Skip the failed email and continue");
+            LOG.info("Jump to folder " + curFolder + " failed. Skip the failed email and continue");
           }
           if (lastSuccessMsgId != null) {
             if (fetcher.jumpToMessageId(lastSuccessMsgId)) {
-              LOG.info("jump to last failed mail");
+              LOG.info("Jump to last failed mail");
             } else {
-              LOG.info("can't jump to last failed mail");
+              LOG.info("Can't jump to last failed mail");
             }
           }
         } else {

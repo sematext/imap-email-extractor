@@ -44,8 +44,7 @@ public class EmailExtractor {
       // parse the command line arguments
       CommandLine line = parser.parse(options, args);
 
-      if (line.hasOption("help") || 
-          (!line.hasOption("include") && !line.hasOption("enclude")) ) {
+      if (line.hasOption("help") || (!line.hasOption("include") && !line.hasOption("enclude"))) {
         HelpFormatter formatter = new HelpFormatter();
         formatter.printHelp("EmailExtractor", options);
         return;
@@ -92,9 +91,15 @@ public class EmailExtractor {
     }
 
     int restartCount = 0;
+    String currentFolder = "";
+
     StringBuilder sb = new StringBuilder();
     while (fetcher.hasNext()) {
       IMAPMessage mail = fetcher.next();
+      if (!currentFolder.equals(fetcher.getFolder())) {
+        currentFolder = fetcher.getFolder();
+        restartCount = 0;
+      }
 
       try {
         sb.setLength(0);
@@ -118,26 +123,25 @@ public class EmailExtractor {
 
         if (esCount > solrCount) {
           for (Address address : mail.getFrom()) {
-            InternetAddress from = (InternetAddress)address;
+            InternetAddress from = (InternetAddress) address;
             System.out.println("from " + from.getAddress() + " ES " + fetcher.getFolder());
           }
           // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
           for (Address address : mail.getAllRecipients()) {
-            InternetAddress to = (InternetAddress)address;
+            InternetAddress to = (InternetAddress) address;
             System.out.println("to   " + to.getAddress() + " ES " + fetcher.getFolder());
           }
         } else {
           for (Address address : mail.getFrom()) {
-            InternetAddress from = (InternetAddress)address;
+            InternetAddress from = (InternetAddress) address;
             System.out.println("from " + from.getAddress() + " Solr " + fetcher.getFolder());
           }
-         // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
+          // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
           for (Address address : mail.getAllRecipients()) {
-            InternetAddress to = (InternetAddress)address;
+            InternetAddress to = (InternetAddress) address;
             System.out.println("to   " + to.getAddress() + " Solr " + fetcher.getFolder());
           }
         }
-        restartCount = 0;
       } catch (Exception e) {
         LOG.error("Can't read content from email", e);
         restartCount++;
@@ -146,10 +150,11 @@ public class EmailExtractor {
           String curFolder = fetcher.getFolder();
           LOG.info("restart at folder " + curFolder + " time " + restartCount);
           fetcher.disconnectFromMailBox();
-          if (!fetcher.connectToMailBox() || ! fetcher.moveToFolder(curFolder) ) {
+          if (!fetcher.connectToMailBox() || !fetcher.moveToFolder(curFolder)) {
             LOG.info("restart at folder " + curFolder + " failed. Skip the failed email and continue");
-            restartCount = 0;
           }
+        } else {
+          LOG.info("Skip the failed email and continue");
         }
       }
     }

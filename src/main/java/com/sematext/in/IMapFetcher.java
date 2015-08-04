@@ -307,8 +307,23 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
     }
     return msgIter.getFolder();
   }
+  
+  public boolean jumpToMessageId(String id) {
+    while (hasNext()) {
+      IMAPMessage mail = next();
+      
+      try {
+        if (id.equals(mail.getMessageID())) {
+          return true;
+        }
+      } catch (MessagingException e) {
+        return false;
+      }
+    }
+    return false;
+  }
 
-  public boolean moveToFolder(String folderName) {
+  public boolean jumpToFolder(String folderName) {
     FolderIterator newFolderIter = null;
     MessageIterator newMsgIter = null;
     try {

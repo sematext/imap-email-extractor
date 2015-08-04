@@ -302,6 +302,9 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   }
 
   public String getFolder() {
+    if (msgIter == null) {
+      return null;
+    }
     return msgIter.getFolder();
   }
 

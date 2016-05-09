@@ -220,6 +220,8 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   public boolean connectToMailBox() {
     try {
       Properties props = new Properties();
+      props.setProperty("mail.imap.ssl.enable", "true"); // required for Gmail
+      props.setProperty("mail.imap.auth.mechanisms", "XOAUTH2");
       props.setProperty("mail.store.protocol", config.getString("imap.protocol"));
       props.setProperty("mail.imaps.fetchsize", "" + fetchSize);
       props.setProperty("mail.imaps.timeout", "" + rTimeout);
@@ -227,9 +229,9 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
       props.setProperty("mail.imaps.connectiontimeout", "" + cTimeout);
       props.setProperty("mail.imaps.connectionpooltimeout", "" + cTimeout);
 
-      Session session = Session.getDefaultInstance(props, null);
+      Session session = Session.getInstance(props);
       mailbox = session.getStore(config.getString("imap.protocol"));
-      mailbox.connect(config.getString("imap.host"), config.getString("imap.user"), config.getString("imap.password"));
+      mailbox.connect(config.getString("imap.host"), config.getString("imap.user"), config.getString("imap.access_token"));
       LOG.info("Connected to mailbox");
       return true;
     } catch (MessagingException e) {

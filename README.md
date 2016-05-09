@@ -4,6 +4,7 @@ Extract Email addresses using IMAP.
 
 ## Setting up for OAuth authentication
 The specific steps for the first-time setup look like this:
+
 1. Go to https://console.developers.google.com/ and create a new "project". You will need a Google account, which may or may not be the same as the one you intend to send mail from.
 2. When the project dashboard comes up for the new project, select "Enable and manage APIs"
 3. Select "Credentials" on the left

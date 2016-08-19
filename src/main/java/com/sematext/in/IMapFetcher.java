@@ -15,10 +15,6 @@ import org.apache.commons.configuration.CompositeConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.List;
-import java.util.Properties;
-
 import javax.mail.FetchProfile;
 import javax.mail.Folder;
 import javax.mail.Message;
@@ -27,14 +23,23 @@ import javax.mail.Multipart;
 import javax.mail.Part;
 import javax.mail.Session;
 import javax.mail.Store;
+import javax.mail.search.AndTerm;
 import javax.mail.search.BodyTerm;
+import javax.mail.search.ComparisonTerm;
+import javax.mail.search.DateTerm;
 import javax.mail.search.OrTerm;
 import javax.mail.search.SearchTerm;
 import javax.mail.search.SubjectTerm;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Properties;
+
 public class IMapFetcher implements Iterator<IMAPMessage> {
   private static final Logger LOG = LoggerFactory.getLogger(IMapFetcher.class);
-
+  
   private final CompositeConfiguration config;
   private final String[] excludes;
   private final String[] includes;
@@ -50,6 +55,8 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
   private int rTimeout = 60 * 1000;
 
   private List<String> keywords;
+
+  private Date fetchMailsSince;
 
   class FolderIterator implements Iterator<Folder> {
     private Store mailbox;
@@ -86,14 +93,14 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
               hasMessages = (next.getType() & Folder.HOLDS_MESSAGES) != 0;
               next.open(Folder.READ_ONLY);
               lastFolder = next;
-              LOG.info("Opened folder: " + fullName);
+              LOG.info("Opened folder: {}", fullName);
             }
             if (((next.getType() & Folder.HOLDS_FOLDERS) != 0)) {
               Folder[] children = next.list();
               LOG.debug("Adding its children to list");
               for (int i = children.length - 1; i >= 0; i--) {
                 folders.add(0, children[i]);
-                LOG.debug("Child name : " + children[i].getFullName());
+                LOG.debug("Child name: {}", children[i].getFullName());
               }
               if (children.length == 0) {
                 LOG.debug("No children");
@@ -153,11 +160,11 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
           totalInFolder = messagesInCurBatch.length;
           folder.fetch(messagesInCurBatch, fp);
           current = 0;
-          LOG.info("Total messages: " + totalInFolder);
+          LOG.info("Total messages: {}", totalInFolder);
           LOG.info("Search criteria applied. Batching disabled.");
         } else {
           totalInFolder = folder.getMessageCount();
-          LOG.info("Total messages: " + totalInFolder);
+          LOG.info("Total messages: {}", totalInFolder);
           getNextBatch(batchSize, folder);
         }
       } catch (MessagingException e) {
@@ -180,8 +187,8 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
       folder.fetch(messagesInCurBatch, fp);
       current = 0;
       currentBatch++;
-      LOG.info("Current batch: " + currentBatch);
-      LOG.info("Messages in this batch: " + messagesInCurBatch.length);
+      LOG.info("Current batch: {}", currentBatch);
+      LOG.info("Messages in this batch: {}", messagesInCurBatch.length);
     }
 
     public boolean hasNext() {
@@ -197,6 +204,34 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
       }
       return hasMore;
     }
+    
+    private SearchTerm getSearchTerm() {
+      SearchTerm st = null;
+      
+      if (fetchMailsSince != null) {
+        CustomFilter dateFilter = new MailsSinceLastCheckFilter(fetchMailsSince);
+        st = dateFilter.getCustomSearch(folder);
+      }
+      
+      if (keywords != null && !keywords.isEmpty()) {
+        SearchTerm[] terms = new SearchTerm[keywords.size() * 2];
+        int i = 0;
+        for (String keyword : keywords) {
+          terms[i++] = new SubjectTerm(keyword);
+          terms[i++] = new BodyTerm(keyword);
+        }
+  
+        OrTerm orTerm = new OrTerm(terms);
+        
+        if (st == null) {
+          st = orTerm;
+        } else {
+          st = new AndTerm(st, orTerm);
+        }
+      }
+      
+      return st;
+    }
 
     public String getFolder() {
       return this.folder.getFullName();
@@ -211,10 +246,11 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
     }
   }
 
-  public IMapFetcher(CompositeConfiguration config, String[] includes, String[] excludes) {
+  public IMapFetcher(CompositeConfiguration config, String[] includes, String[] excludes, Date fetchMailsSince) {
     this.config = config;
     this.includes = includes;
     this.excludes = excludes;
+    this.fetchMailsSince = fetchMailsSince;
   }
 
   public boolean connectToMailBox() {
@@ -255,22 +291,6 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
 
   public void setFilterKeywords(List<String> keywords) {
     this.keywords = keywords;
-  }
-
-  private SearchTerm getSearchTerm() {
-    if (keywords == null && keywords.isEmpty()) {
-      return null;
-    }
-
-    SearchTerm[] terms = new SearchTerm[keywords.size() * 2];
-    int i = 0;
-    for (String keyword : keywords) {
-      terms[i++] = new SubjectTerm(keyword);
-      terms[i++] = new BodyTerm(keyword);
-    }
-
-    OrTerm orTerm = new OrTerm(terms);
-    return orTerm;
   }
 
   public boolean hasNext() {
@@ -368,4 +388,59 @@ public class IMapFetcher implements Iterator<IMAPMessage> {
       getPartContent((Part) part.getContent(), sb);
     }
   }
+  
+  public static interface CustomFilter {
+    public SearchTerm getCustomSearch(Folder folder);
+  }
+  
+  class MailsSinceLastCheckFilter implements CustomFilter {
+
+    private Date since;
+
+    public MailsSinceLastCheckFilter(Date date) {
+      since = date;
+    }
+
+    @SuppressWarnings("serial")
+    public SearchTerm getCustomSearch(final Folder folder) {
+      final SimpleDateFormat parser = new SimpleDateFormat("yyyy-MM-dd"); 
+      final String sinceText = new SimpleDateFormat("yyyy-MM-dd").format(since);
+      
+      LOG.info("Building mail filter for messages in {} that occur from {}", folder.getName(), sinceText);
+      return new DateTerm(ComparisonTerm.GE, since) {
+        private int matched = 0;
+        private int seen = 0;
+        
+        @Override
+        public boolean match(Message msg) {
+          boolean isMatch = false;
+          ++seen;
+          try {
+            Date msgDate = msg.getReceivedDate();
+            if (msgDate == null) msgDate = msg.getSentDate();
+            
+            if (msgDate != null && msgDate.getTime() >= since.getTime()) {
+              ++matched;
+              isMatch = true;
+            } else {
+              if (LOG.isDebugEnabled()) {
+                String msgDateStr = (msgDate != null) ? parser.format(msgDate) : "null";
+                String sinceDateStr = (since != null) ? sinceText : "null";
+                LOG.debug("Message {} was received at [{}], since filter is [{}]", msg.getSubject(), msgDateStr, sinceDateStr);
+              }
+            }
+          } catch (MessagingException e) {
+            LOG.warn("Failed to process message", e);
+          }
+          
+          if (seen % 100 == 0) {
+            LOG.info("Matched {} of {} messages since {}", matched, seen, sinceText);
+          }
+          
+          return isMatch;
+        }
+      };
+    }
+  }
 }
+

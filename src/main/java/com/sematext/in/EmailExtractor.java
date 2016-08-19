@@ -27,7 +27,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import javax.mail.Address;
@@ -35,6 +37,7 @@ import javax.mail.internet.InternetAddress;
 
 public class EmailExtractor {
   private static final Logger LOG = LoggerFactory.getLogger(EmailExtractor.class);
+  private static final SimpleDateFormat FORMAT = new SimpleDateFormat("yyyy-MM-dd");
 
   public static void main(String[] args) throws ConfigurationException {
     Options options = buildOptions();
@@ -51,9 +54,22 @@ public class EmailExtractor {
       }
 
       EmailExtractor extractor = new EmailExtractor();
-      extractor.extract(line.getOptionValue("include"), line.getOptionValue("exclude"));
+
+      String include = line.getOptionValue("include");
+      String exclude = line.getOptionValue("exclude");
+      Date fromDate = null;
+      if (line.hasOption("from-date")) {
+        String fromDateText = line.getOptionValue("from-date");
+        try {
+          fromDate = FORMAT.parse(fromDateText);
+        } catch (java.text.ParseException e) {
+          LOG.warn("Invalid from-date value (YYYY-MM-DD) {}", fromDateText);
+        }
+      }
+
+      extractor.extract(include, exclude, fromDate);
     } catch (ParseException exp) {
-      LOG.error("Parsing failed.  Reason: " + exp.getMessage());
+      LOG.error("Parsing failed.  Reason: {}", exp.getMessage());
     }
 
   }
@@ -66,12 +82,15 @@ public class EmailExtractor {
         .hasArg().required(false).build();
     Option excludeFolders = Option.builder("e").longOpt("exclude").desc("regular expression to exclude folders")
         .hasArg().required(false).build();
+    Option fromDate = Option.builder("d").longOpt("from-date").desc("process email from date YYYY-MM-DD").hasArg()
+        .required(false).build();
 
-    options.addOption(includeFolders).addOption(excludeFolders).addOption(help);
+    options.addOption(includeFolders).addOption(excludeFolders).addOption(fromDate).addOption(help);
+
     return options;
   }
 
-  private void extract(String include, String exclude) throws ConfigurationException {
+  private void extract(String include, String exclude, Date fromDate) throws ConfigurationException {
     String[] includes = include == null ? new String[0] : include.split(",");
     String[] excludes = exclude == null ? new String[0] : exclude.split(",");
 
@@ -83,7 +102,7 @@ public class EmailExtractor {
     List<String> esKeywords = Arrays.asList(config.getStringArray("es.keywords"));
     List<String> keywords = Lists.newArrayList(Iterables.concat(solrKeywords, esKeywords));
 
-    IMapFetcher fetcher = new IMapFetcher(config, includes, excludes);
+    IMapFetcher fetcher = new IMapFetcher(config, includes, excludes, fromDate);
     fetcher.setFilterKeywords(keywords);
     if (!fetcher.connectToMailBox()) {
       LOG.error("Can't connect to mailbox");
@@ -146,15 +165,15 @@ public class EmailExtractor {
         lastSuccessMsgId = mail.getMessageID();
       } catch (Exception e) {
         LOG.error("Can't read content from email", e);
-        
+
         restartCount++;
         // restart (connect/disconnect) and continue from current folder
         if (restartCount <= 3) {
           String curFolder = fetcher.getFolder();
-          LOG.info("Restart at folder " + curFolder + " time " + restartCount);
+          LOG.info("Restart at folder {} time {}", curFolder, restartCount);
           fetcher.disconnectFromMailBox();
           if (!fetcher.connectToMailBox() || !fetcher.jumpToFolder(curFolder)) {
-            LOG.info("Jump to folder " + curFolder + " failed. Skip the failed email and continue");
+            LOG.info("Jump to folder {} failed. Skip the failed email and continue", curFolder);
           }
           if (lastSuccessMsgId != null) {
             if (fetcher.jumpToMessageId(lastSuccessMsgId)) {

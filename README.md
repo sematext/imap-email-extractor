@@ -27,18 +27,19 @@ You should do all this only once. You will be left with a Client ID, Client Secr
 
 Update IMAP info (user/access_token) in src/main/resources/config.properties
 
-# Build
+## Build
 
 ```
 mvn package
 ```
 
-# Commands
+## Commands
 
 ```
-Usage: java -jar target/imap-email-extractor-0.0.1-SNAPSHOT-jar-with-dependencies.jar -i [folders] -e [folders] -h
+Usage: java -jar target/imap-email-extractor-0.0.2-SNAPSHOT-jar-with-dependencies.jar -i [folders] -e [folders] -d [fromDate] -h
   where OPTIONS may be:
     -h              Print this help
     -i <folders>    OPTIONAL Comma-separated list of include folders (regular expression)
     -e <folders>    OPTIONAL Comma-separated list of exclude folders (regular expression)
+    -d <fromDate>   OPTIONAL fetch email from date (YYYY-MM-DD)
 ```

@@ -126,6 +126,8 @@ public class EmailExtractor {
         sb.append(mail.getSubject());
         sb.append(" ");
         fetcher.getPartContent(mail, sb);
+        
+        Date receivedDate = mail.getReceivedDate();
 
         String content = sb.toString().toLowerCase();
         int solrCount = 0;
@@ -144,22 +146,22 @@ public class EmailExtractor {
         if (esCount > solrCount) {
           for (Address address : mail.getFrom()) {
             InternetAddress from = (InternetAddress) address;
-            System.out.println("from " + from.getAddress() + " ES " + fetcher.getFolder());
+            System.out.format("from %s ES %s at %s \n", from.getAddress(), fetcher.getFolder(), FORMAT.format(receivedDate));
           }
           // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
           for (Address address : mail.getAllRecipients()) {
             InternetAddress to = (InternetAddress) address;
-            System.out.println("to   " + to.getAddress() + " ES " + fetcher.getFolder());
+            System.out.format("to %s ES %s at %s \n", to.getAddress(), fetcher.getFolder(), FORMAT.format(receivedDate));
           }
         } else {
           for (Address address : mail.getFrom()) {
             InternetAddress from = (InternetAddress) address;
-            System.out.println("from " + from.getAddress() + " Solr " + fetcher.getFolder());
+            System.out.format("from %s Solr %s at %s \n", from.getAddress(), fetcher.getFolder(), FORMAT.format(receivedDate));
           }
           // Extracts the TO, CC, BCC, and NEWSGROUPS recipients.
           for (Address address : mail.getAllRecipients()) {
             InternetAddress to = (InternetAddress) address;
-            System.out.println("to   " + to.getAddress() + " Solr " + fetcher.getFolder());
+            System.out.format("to %s Solr %s at %s \n", to.getAddress(), fetcher.getFolder(), FORMAT.format(receivedDate));
           }
         }
         lastSuccessMsgId = mail.getMessageID();

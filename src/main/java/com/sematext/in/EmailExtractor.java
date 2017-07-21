@@ -47,7 +47,7 @@ public class EmailExtractor {
       // parse the command line arguments
       CommandLine line = parser.parse(options, args);
 
-      if (line.hasOption("help") || (!line.hasOption("include") && !line.hasOption("enclude"))) {
+      if (line.hasOption("help") || (!line.hasOption("include") && !line.hasOption("exclude"))) {
         HelpFormatter formatter = new HelpFormatter();
         formatter.printHelp("EmailExtractor", options);
         return;
